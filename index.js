@@ -57,6 +57,8 @@ app.use('/api/contact', require('./routes/contactRoute'))
 
 app.use('/api/rating',require("./routes/reviewRoute"));
 
+app.use('/api/payment', require('./routes/PaymentRoute'))
+
 // http://localhost:5000/api/user/create
 
 //Starting the server
