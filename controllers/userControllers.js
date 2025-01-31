@@ -2,6 +2,24 @@ const userModel = require('../models/userModels')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken');
 const sendOtp = require('../service/sendOtp');
+// Lockout tiers
+const LOCKOUT_CONFIG = [
+  { attempts: 5, lockTime: 15 * 1000 },       // Lock 15s after 5 attempts
+  { attempts: 10, lockTime: 60 * 1000 },      // Lock 1m after 10 attempts
+  { attempts: 15, lockTime: 5 * 60 * 1000 },  // Lock 5m after 15 attempts
+  { attempts: Infinity, lockTime: 60 * 60 * 1000 }, // 1h after 20+ attempts
+];
+
+// Helper function to determine lock time based on total attempts
+const getLockTime = (attempts) => {
+  for (const config of LOCKOUT_CONFIG) {
+    if (attempts <= config.attempts) {
+      return config.lockTime;
+    }
+  }
+  return 0;
+};
+
 const PASSWORD_POLICY = {
   minLength: 8,
   maxLength: 20,
@@ -11,180 +29,6 @@ const PASSWORD_HISTORY_LIMIT = 5; // Limit for previous passwords
 const PASSWORD_EXPIRY_DAYS = 90; // Password expiry time
 const MAX_LOGIN_ATTEMPTS = 5; // Maximum login attempts
 const LOCK_TIME = 15 * 60 * 1000; // Lockout time (15 minutes)
-
-// const createUser = async (req, res) => {
-//   // res.send("Create user API is working!")
-
-//   //1.Check incoming data
-//   console.log(req.body);
-
-//   //2.Destructure the incoming data
-//   const { firstName, lastName, email, password, phone } = req.body;
-
-//   //3.Validate the data
-//   if (!firstName || !lastName || !email || !password || !phone) {
-
-//     // res.send("Please enter all fields!")
-//     return res.status(400).json({
-//       "success": false,
-//       "message": "Please enter all fields!"
-//     })
-//   }
-//   //4.Error Handling(try catch)
-//   try {
-//     //5.Check if the user is already registered
-//     const existingUser = await userModel.findOne({ email: email })
-//     //5.1 If user found: send response
-//     if (existingUser) {
-//       return res.status(400).json({
-//         "success": false,
-//         "message": "User already exists!"
-//       })
-//     }
-
-//     // Hashing / encryption of the password
-//     const randomSalt = await bcrypt.genSalt(10)
-//     const hashedPassword = await bcrypt.hash(password, randomSalt)
-
-//     //5.2 If user is new:
-
-//     const newUser = new userModel({
-//       //Field : Client's Value
-//       firstName: firstName,
-//       lastName: lastName,
-//       email: email,
-//       password: hashedPassword,
-//       phone: phone
-//     })
-
-//     //Save to database
-//     await newUser.save()
-
-//     //send the response
-//     res.status(201).json({
-//       "success": true,
-//       "message": "User Created Successfully!"
-//     })
-//   } catch (error) {
-//     console.log(error)
-//     res.status(500).json({
-//       "success": false,
-//       "message": "Internal server Error!"
-//     })
-//   }
-
-// }
-
-// //login function
-// const loginUser = async (req, res) => {
-//   // res.send("Login API is working!")
-
-//   //Check incoming data
-//   console.log(req.body)
-
-//   //Destructuring
-//   const { email, password } = req.body;
-
-//   //Validation
-//   if (!email || !password) {
-//     return res.status(400).json({
-//       "success": false,
-//       "message": "Please enter all fields!"
-//     })
-//   }
-
-
-//   //try catch
-//   try {
-
-//     //find user (email)
-//     const user = await userModel.findOne({ email: email })
-//     //found data: firstName, lastName, email, password
-
-//     //not found(error message)
-//     if (!user) {
-//       return res.status(400).json({
-//         "success": false,
-//         "message": "User does not exist!"
-//       })
-//     }
-
-//     //compare password(bcrypt)
-//     const isValidPassword = await bcrypt.compare(password, user.password)
-
-//     //not valid(error)
-//     if (!isValidPassword) {
-//       return res.status(400).json({
-//         "success": false,
-//         "message": "Password not matched!"
-//       })
-//     }
-//     //token(Generate - user Data+KEY)   
-//     const token = await jwt.sign(
-//       { id: user._id },
-//       process.env.JWT_SECRET
-//     )
-//     //response (token, user data)
-//     res.status(201).json({
-//       "success": true,
-//       "message": "User logged in successfully!",
-//       "token": token,
-//       "userData": user
-//     })
-
-
-//   } catch (error) {
-//     console.log(error)
-//     return res.status(400).json({
-//       "success": false,
-//       "message": "Please enter all fields!"
-//     })
-//   }
-// }
-
-const getUserProfile = async (req, res) => {
-  const token = req.headers.authorization.split(' ')[1]
-  if (!token) {
-    return res.status(401).json({ message: "Authorization token is missing" })
-  }
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET)
-    const user = await userModel.findById(decoded.id);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" })
-    }
-    res.json(user);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
-  }
-}
-
-const updateUserProfile = async (req, res) => {
-  const token = req.headers.authorization.split(' ')[1]; // Assuming Bearer token
-  if (!token) {
-    return res.status(401).json({ message: 'Authorization token is missing' });
-  }
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await userModel.findById(decoded.id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    const { firstName, lastName, phone, password } = req.body;
-    if (firstName) user.firstName = firstName;
-    if (lastName) user.lastName = lastName;
-    if (phone) user.phone = phone;
-    if (password) user.password = await bcrypt.hash(password, 10);
-
-    await user.save();
-    res.json(user);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
 
 
 // Function to validate password strength
@@ -273,6 +117,7 @@ const createUser = async (req, res) => {
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
+  // Validate request body
   if (!email || !password) {
     return res.status(400).json({
       success: false,
@@ -283,6 +128,7 @@ const loginUser = async (req, res) => {
   try {
     const user = await userModel.findOne({ email });
 
+    // Check if user exists
     if (!user) {
       return res.status(400).json({
         success: false,
@@ -290,6 +136,7 @@ const loginUser = async (req, res) => {
       });
     }
 
+    // Check if password has expired
     if (isPasswordExpired(user.passwordLastChanged)) {
       return res.status(403).json({
         success: false,
@@ -297,44 +144,68 @@ const loginUser = async (req, res) => {
       });
     }
 
-    if (user.lockUntil && user.lockUntil > Date.now()) {
-      const remainingTime = Math.ceil((user.lockUntil - Date.now()) / 1000);
-      return res.status(403).json({
-        success: false,
-        message: "Account is locked.",
-        remainingTime,
-      });
+    // Check if user is currently locked
+    if (user.isLocked) {
+      if (user.lockUntil <= Date.now()) {
+        // Lock has expired, remove lock but do NOT reset loginAttempts
+        user.lockUntil = null;
+        await user.save();
+      } else {
+        // User is still locked, calculate remaining lock time
+        const remainingTime = Math.ceil((user.lockUntil - Date.now()) / 1000); // in seconds
+        return res.status(403).json({
+          success: false,
+          message: "Account is locked due to multiple failed login attempts.",
+          remainingTime,
+        });
+      }
     }
 
+    // Validate password
     const isValidPassword = await bcrypt.compare(password, user.password);
 
     if (!isValidPassword) {
+      // Increment login attempts
       user.loginAttempts = (user.loginAttempts || 0) + 1;
 
-      if (user.loginAttempts >= MAX_LOGIN_ATTEMPTS) {
-        user.lockUntil = Date.now() + LOCK_TIME;
+      // Determine lock time based on the new total attempts
+      const lockTime = getLockTime(user.loginAttempts);
+
+      // If the user meets the minimum attempts to be locked (5 or more)
+      if (lockTime > 0 && user.loginAttempts >= LOCKOUT_CONFIG[0].attempts) {
+        user.lockUntil = Date.now() + lockTime;
         await user.save();
         return res.status(403).json({
           success: false,
           message: "Account locked due to multiple failed login attempts.",
+          remainingTime: Math.ceil(lockTime / 1000), // lock time in seconds
         });
       }
 
       await user.save();
+
+      // Calculate remaining attempts based on current tier
+      const currentConfig = LOCKOUT_CONFIG.find(config => user.loginAttempts <= config.attempts);
+      const remainingAttempts = currentConfig ? currentConfig.attempts - user.loginAttempts : 0;
+
       return res.status(400).json({
         success: false,
         message: "Incorrect password!",
+        remainingAttempts: remainingAttempts > 0 ? remainingAttempts : 0,
       });
     }
 
+    // If password is correct, reset loginAttempts and lockUntil
     user.loginAttempts = 0;
-    user.lockUntil = undefined;
+    user.lockUntil = null;
     await user.save();
 
+    // Generate JWT token
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
 
+    // Respond with success
     res.status(200).json({
       success: true,
       message: "User logged in successfully!",
@@ -344,6 +215,7 @@ const loginUser = async (req, res) => {
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
+        phone: user.phone,
         isAdmin: user.isAdmin,
       },
     });
@@ -355,6 +227,8 @@ const loginUser = async (req, res) => {
     });
   }
 };
+
+
 
 const changePassword = async (req, res) => {
   const { email, currentPassword, newPassword } = req.body;
@@ -424,6 +298,49 @@ const changePassword = async (req, res) => {
   }
 };
 
+const getUserProfile = async (req, res) => {
+  const token = req.headers.authorization.split(' ')[1]
+  if (!token) {
+    return res.status(401).json({ message: "Authorization token is missing" })
+  }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET)
+    const user = await userModel.findById(decoded.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" })
+    }
+    res.json(user);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+}
+
+const updateUserProfile = async (req, res) => {
+  const token = req.headers.authorization.split(' ')[1]; // Assuming Bearer token
+  if (!token) {
+    return res.status(401).json({ message: 'Authorization token is missing' });
+  }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await userModel.findById(decoded.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const { firstName, lastName, phone, password } = req.body;
+    if (firstName) user.firstName = firstName;
+    if (lastName) user.lastName = lastName;
+    if (phone) user.phone = phone;
+    if (password) user.password = await bcrypt.hash(password, 10);
+
+    await user.save();
+    res.json(user);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
 
 
 const forgotPassword = async (req, res) => {
