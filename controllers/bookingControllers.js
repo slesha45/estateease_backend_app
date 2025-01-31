@@ -4,15 +4,26 @@ const Property = require('../models/propertyModels');
 
 // Create Booking
 const createBooking = async (req, res) => {
-  const { userId, propertyId, date, time } = req.body;
+  const { propertyId, date, time } = req.body;
 
   // Validate input
-  if (!userId || !propertyId || !date || !time) {
+  if (!propertyId || !date || !time) {
     return res.status(400).json({ success: false, message: 'All fields are required' });
   }
 
   try {
-    const newBooking = new Booking({ user: userId, property: propertyId, date, time });
+    // Check if property exists
+    const property = await Property.findById(propertyId);
+    if (!property) {
+      return res.status(404).json({ success: false, message: 'Property not found' });
+    }
+
+    const newBooking = new Booking({
+      user: req.user._id,
+      property: propertyId,
+      date,
+      time
+    });
     await newBooking.save();
 
     res.status(201).json({ success: true, message: 'Booking created successfully', booking: newBooking });
