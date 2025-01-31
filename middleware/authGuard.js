@@ -4,7 +4,7 @@ const User = require("../models/userModels")
 const authGuard = async (req, res, next) => {
 
     //check incoming data
-    console.log(req.headers) //pass
+    // console.log(req.headers) //pass
 
     //get authorization data from headers 
     const authHeader = req.headers.authorization;
