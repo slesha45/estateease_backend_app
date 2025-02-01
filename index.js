@@ -30,10 +30,9 @@ app.use(acceptFormData())
 //Make a static public folder
 app.use(express.static("./public"))
 
-// **Apply express-mongo-sanitize middleware**
+// Apply express-mongo-sanitize middleware
 app.use(
   mongoSanitize({
-    // Optionally, replace prohibited characters with an underscore
     replaceWith: '_',
   })
 );
@@ -75,12 +74,12 @@ app.use('/api/payment', require('./routes/PaymentRoute'))
 //     console.log(`Server is Running on port ${PORT} !`);
 // });
 // HTTPS server configuration
+
 const options = {
   key: fs.readFileSync(path.resolve(__dirname, "server.key")),
   cert: fs.readFileSync(path.resolve(__dirname, "server.crt")),
 
 };
-
 
 // Start HTTPS server
 https.createServer(options, app).listen(PORT, () => {
