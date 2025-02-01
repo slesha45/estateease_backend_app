@@ -205,44 +205,6 @@ const updateProperty = async (req, res) => {
     }
 }
 
-//pagination
-// const paginationProperty = async (req, res) => {
-
-//     //page no
-//     const pageNo = req.query.page || 1;
-
-//     //result per page
-//     const resultPerPage = 2;
-
-//     try {
-
-//         //Find all products, skip, limit
-//         const property = await propertyModel.find({})
-//             .skip((pageNo - 1) * resultPerPage)
-//             .limit(resultPerPage)
-
-//         //if page 6 is requested, result 0
-//         if (property.length === 0) {
-//             return res.status(400).json({
-//                 "success": false,
-//                 "message": "No property found!"
-//             })
-//         }
-//         //response
-//         res.status(201).json({
-//             "success": true,
-//             "message": "Property Fetched!",
-//             "property": property
-//         })
-
-//     } catch (error) {
-//         console.log(error)
-//         res.status(500).json({
-//             "success": false,
-//             "message": "Internal Server Error!"
-//         })
-//     }
-// }
 const paginationProperty = async (req, res) => {
     try {
       // page no
