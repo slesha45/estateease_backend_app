@@ -45,12 +45,6 @@ const PORT = process.env.PORT;
 // Connecting  to Database
 connectDatabase();
 
-//Making a test endpoint
-// Endpoint : POST, GET, PUT, DELETE
-
-
-// http://localhost:5000/test
-
 // Configuring Routes of User
 
 app.use('/api/user', require('./routes/userRoutes'))
@@ -67,13 +61,6 @@ app.use('/api/rating', require("./routes/reviewRoute"));
 
 app.use('/api/payment', require('./routes/PaymentRoute'))
 
-// http://localhost:5000/api/user/create
-
-//Starting the server
-// app.listen(PORT, () => {
-//     console.log(`Server is Running on port ${PORT} !`);
-// });
-// HTTPS server configuration
 
 const options = {
   key: fs.readFileSync(path.resolve(__dirname, "server.key")),
